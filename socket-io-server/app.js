@@ -14,11 +14,45 @@ server.listen(port, () => console.log(`Listening on port ${port}`))
 
 const io = socketIo(server)
 
+const participants = {}
+let presenterId = null
+
 io.on("connection", (socket) => {
-    console.log("New client connected", socket.id)
-    socket.emit("test", "Hello world")
+
+    const log = (text) => {
+        console.log(`[${socket.id}]\t${text}`)
+    }
+
+    const leave = () => {
+        delete participants[socket.id]
+        if (socket.id === presenterId) {
+            presenterId = null
+            socket.emit("presenter", presenterId)
+        }
+        io.emit("participants", participants)
+        log("client left")
+    }
+
+    log("client connected")
+
+    socket.emit("presenter", presenterId)
 
     socket.on("disconnect", () => {
-        console.log("Client disconnected")
+        log("client disconnected")
+        if (participants[socket.id]) leave()
     })
+
+    socket.on("join", (isPresenter) => {
+        log("client joined")
+        participants[socket.id] = {
+            name: socket.id
+        }
+        if (isPresenter) presenterId = socket.id
+        io.emit("participants", participants)
+        io.emit("presenter", presenterId)
+    })
+
+    socket.on("leave", leave)
+
+
 })
