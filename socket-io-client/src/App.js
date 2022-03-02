@@ -51,11 +51,22 @@ function App() {
 
   return (
     <div>
-      <p>{presenter()}</p>
+      <h1>{presenter()}</h1>
       {joinLeaveButtons()}
+      <h2>Participants</h2>
       <ul>
         {participantsList()}
       </ul>
+      <div style={{ display: "flex", flexDirection: "row" }}>
+        <div>
+          <h2>Local</h2>
+          <video style={{ border: "1px solid green", width: "16em", height: "9em" }} />
+        </div>
+        <div>
+          <h2>Remote</h2>
+          <video style={{ border: "1px solid green", width: "16em", height: "9em" }} />
+        </div>
+      </div>
     </div>
   )
 }
