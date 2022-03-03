@@ -6,55 +6,87 @@ function App() {
   const [presenterId, setPresenterId] = useState(null)
   const [socket, setSocket] = useState(null)
   const [participants, setParticipants] = useState({})
-  const [peerConnection1, setPeerConnection1] = useState({})
-  const [peerConnection2, setPeerConnection2] = useState({})
   const localVideo = useRef(null)
   const remoteVideo = useRef(null)
 
-
   useEffect(() => {
 
-    const { RTCPeerConnection } = window
-    const peerConnection1 = new RTCPeerConnection()
-    const peerConnection2 = new RTCPeerConnection()
-    setPeerConnection1(peerConnection1)
-    setPeerConnection2(peerConnection2)
+    const config = {
+      iceServers: [
+        {
+          urls: ["stun:stun.l.google.com:19302"]
+        }
+      ]
+    }
+
+    const { RTCPeerConnection, RTCSessionDescription } = window
+    const peerConnections = {}
+    let spectatorPeerConnection
+    let presenterId
+
+    const createPeerConnection = (socketId) => {
+      const pc = new RTCPeerConnection(config)
+      pc.onicecandidate = event => {
+        console.log("onicecandidate")
+        if (event.candidate)
+          socket.emit("candidate", { socketId, candidate: event.candidate })
+      }
+      peerConnections[socketId] = pc
+      return pc
+    }
 
     const socket = socketIOClient(ENDPOINT)
-    socket.on("presenter", presenterId => {
-      setPresenterId(presenterId)
+    socket.on("presenter", id => {
+      presenterId = id
+      setPresenterId(id)
     })
-    socket.on("participants", participants => {
-      setParticipants(participants)
+    socket.on("participants", setParticipants)
+    socket.on("join", async (socketId) => {
+      console.log("receive join")
+      const pc = createPeerConnection(socketId)
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(new RTCSessionDescription(offer))
+
+      socket.emit("webrtc-offer", { offer, to: socketId })
     })
     socket.on("webrtc-offer", async offer => {
       // spectator
-      const { RTCSessionDescription } = window
+      console.log("receive webrtc-offer")
 
-      await peerConnection2.setRemoteDescription(
+      spectatorPeerConnection = createPeerConnection(presenterId)
+      spectatorPeerConnection.ontrack = function ({ streams: [stream] }) {
+        console.log("ontrack")
+        if (remoteVideo) {
+          remoteVideo.srcObject = stream
+        }
+      }
+
+      await spectatorPeerConnection.setRemoteDescription(
         new RTCSessionDescription(offer)
       )
-      const answer = await peerConnection2.createAnswer()
-      await peerConnection2.setLocalDescription(new RTCSessionDescription(answer))
+      const answer = await spectatorPeerConnection.createAnswer()
+      await spectatorPeerConnection.setLocalDescription(new RTCSessionDescription(answer))
 
       socket.emit("webrtc-answer", answer)
     })
-    socket.on("webrtc-answer", async answer => {
+    socket.on("webrtc-answer", async ({ answer, socketId }) => {
       // presenter
+      console.log("receive webrtc-answer")
       const description = new RTCSessionDescription(answer)
-      await peerConnection1.setRemoteDescription(description)
+      await peerConnections[socketId].setRemoteDescription(description)
 
       navigator.getUserMedia(
         { video: true, audio: true },
         stream => {
-          remoteVideo.current.srcObject = stream
-
-          stream.getTracks().forEach(track => peerConnection1.addTrack(track, stream))
+          stream.getTracks().forEach(track => peerConnections[socketId].addTrack(track, stream))
         },
-        error => {
-          console.log(error.message)
-        }
+        (error) => { console.log(error) }
       )
+    })
+    socket.on("candidate", ({ candidate, socketId }) => {
+      // presenter
+      console.log("receive candidate")
+      peerConnections[socketId].addIceCandidate(new RTCIceCandidate(candidate))
     })
     setSocket(socket)
     return () => socket.disconnect()
@@ -68,12 +100,6 @@ function App() {
     socket.emit("join", isPresenter)
     if (isPresenter) {
       setUpLocalVideo()
-
-      const offer = await peerConnection1.createOffer()
-      const sessionDescription = new RTCSessionDescription(offer)
-      await peerConnection1.setLocalDescription(sessionDescription)
-
-      socket.emit("webrtc-offer", offer)
     }
   }
 

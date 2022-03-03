@@ -15,6 +15,7 @@ server.listen(port, () => console.log(`Listening on port ${port}`))
 const io = socketIo(server)
 
 const participants = {}
+const participantSockets = {}
 let presenterId = null
 let presenterSocket = null
 
@@ -26,6 +27,7 @@ io.on("connection", (socket) => {
 
     const leave = () => {
         delete participants[socket.id]
+        delete participantSockets[socket.id]
         if (socket.id === presenterId) {
             presenterId = null
             presenterSocket = null
@@ -49,9 +51,12 @@ io.on("connection", (socket) => {
         participants[socket.id] = {
             name: socket.id
         }
+        participantSockets[socket.id] = socket
         if (isPresenter) {
             presenterId = socket.id
             presenterSocket = socket
+        } else {
+            presenterSocket.emit("join", socket.id)
         }
         io.emit("participants", participants)
         io.emit("presenter", presenterId)
@@ -59,11 +64,15 @@ io.on("connection", (socket) => {
 
     socket.on("leave", leave)
 
-    socket.on("webrtc-offer", (offer) => {
-        io.emit("webrtc-offer", offer)
+    socket.on("webrtc-offer", ({ offer, to }) => {
+        participantSockets[to].emit("webrtc-offer", offer)
     })
 
     socket.on("webrtc-answer", (answer) => {
-        presenterSocket.emit("webrtc-answer", answer)
+        presenterSocket.emit("webrtc-answer", { answer, socketId: socket.id })
+    })
+
+    socket.on("candidate", ({ candidate, socketId }) => {
+        participantSockets[socketId].emit("candidate", { candidate, socketId: socket.id })
     })
 })
