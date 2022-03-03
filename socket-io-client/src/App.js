@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import socketIOClient from "socket.io-client"
+import WebRTCManager from "./WebRTCManager"
 const ENDPOINT = "http://127.0.0.1:4001"
 
 function App() {
@@ -10,77 +11,21 @@ function App() {
   const remoteVideo = useRef(null)
 
   useEffect(() => {
-
-    const config = {
-      iceServers: [
-        {
-          urls: ["stun:stun.l.google.com:19302"]
-        }
-      ]
-    }
-
-    const { RTCPeerConnection, RTCSessionDescription } = window
-    const peerConnections = {}
-    let spectatorPeerConnection
     let presenterId
 
-    const createPeerConnection = (socketId) => {
-      const pc = new RTCPeerConnection(config)
-      pc.onicecandidate = event => {
-        if (event.candidate)
-          socket.emit("candidate", { to: socketId, candidate: event.candidate })
-      }
-
-      peerConnections[socketId] = pc
-      return pc
-    }
-
     const socket = socketIOClient(ENDPOINT)
+    const manager = new WebRTCManager(socket, localVideo.current, remoteVideo.current)
     socket.on("presenter", id => {
       presenterId = id
+      manager.presenterId = presenterId
       setPresenterId(id)
     })
     socket.on("participants", setParticipants)
-    socket.on("join", async (socketId) => {
-      console.log("receive join")
-      const pc = createPeerConnection(socketId)
-
-      const stream = localVideo.current.srcObject
-      stream.getTracks().forEach(track => pc.addTrack(track, stream))
-
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-
-      socket.emit("webrtc-offer", { offer: pc.localDescription, to: socketId })
-    })
-    socket.on("webrtc-offer", async ({ offer, from }) => {
-      // spectator
-      spectatorPeerConnection = createPeerConnection(presenterId)
-      spectatorPeerConnection.ontrack = ({ streams: [stream] }) => {
-        if (remoteVideo.current) remoteVideo.current.srcObject = stream
-
-      }
-
-      await spectatorPeerConnection.setRemoteDescription(new RTCSessionDescription(offer))
-      const answer = await spectatorPeerConnection.createAnswer()
-      await spectatorPeerConnection.setLocalDescription(new RTCSessionDescription(answer))
-
-      socket.emit("webrtc-answer", { answer, to: from })
-    })
-    socket.on("webrtc-answer", async ({ answer, from }) => {
-      // presenter
-      const pc = peerConnections[from]
-      await pc.setRemoteDescription(new RTCSessionDescription(answer))
-    })
-    socket.on("candidate", ({ candidate, from }) => {
-      peerConnections[from].addIceCandidate(new RTCIceCandidate(candidate))
-    })
-    socket.on("webrtc-disconnect", ({ from }) => {
-      if (peerConnections[from]) {
-        peerConnections[from].close()
-        delete peerConnections[from]
-      }
-    })
+    socket.on("join", manager.onJoin.bind(manager))
+    socket.on("webrtc-offer", manager.onOffer.bind(manager))
+    socket.on("webrtc-answer", manager.onAnswer.bind(manager))
+    socket.on("webrtc-candidate", manager.onCandidate.bind(manager))
+    socket.on("webrtc-disconnect", manager.onDisconnect.bind(manager))
     setSocket(socket)
     return () => socket.disconnect()
   }, [])

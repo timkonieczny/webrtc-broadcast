@@ -70,8 +70,7 @@ io.on("connection", (socket) => {
         socket.to(to).emit("webrtc-answer", { answer, from: socket.id })
     })
 
-    socket.on("candidate", ({ candidate, to }) => {
-        log("candidate")
-        socket.to(to).emit("candidate", { candidate, from: socket.id })
+    socket.on("webrtc-candidate", ({ candidate, to }) => {
+        socket.to(to).emit("webrtc-candidate", { candidate, from: socket.id })
     })
 })
