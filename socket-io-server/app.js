@@ -17,7 +17,6 @@ const io = socketIo(server)
 const participants = {}
 const participantSockets = {}
 let presenterId = null
-let presenterSocket = null
 
 io.on("connection", (socket) => {
 
@@ -30,10 +29,10 @@ io.on("connection", (socket) => {
         delete participantSockets[socket.id]
         if (socket.id === presenterId) {
             presenterId = null
-            presenterSocket = null
             socket.emit("presenter", presenterId)
         }
         io.emit("participants", participants)
+        socket.to(presenterId).emit("webrtc-disconnect", { from: socket.id })
         log("client left")
     }
 
@@ -54,9 +53,8 @@ io.on("connection", (socket) => {
         participantSockets[socket.id] = socket
         if (isPresenter) {
             presenterId = socket.id
-            presenterSocket = socket
         } else {
-            presenterSocket.emit("join", socket.id)
+            socket.to(presenterId).emit("join", socket.id)
         }
         io.emit("participants", participants)
         io.emit("presenter", presenterId)
@@ -65,14 +63,15 @@ io.on("connection", (socket) => {
     socket.on("leave", leave)
 
     socket.on("webrtc-offer", ({ offer, to }) => {
-        participantSockets[to].emit("webrtc-offer", offer)
+        socket.to(to).emit("webrtc-offer", { offer, from: socket.id })
     })
 
-    socket.on("webrtc-answer", (answer) => {
-        presenterSocket.emit("webrtc-answer", { answer, socketId: socket.id })
+    socket.on("webrtc-answer", ({ answer, to }) => {
+        socket.to(to).emit("webrtc-answer", { answer, from: socket.id })
     })
 
-    socket.on("candidate", ({ candidate, socketId }) => {
-        participantSockets[socketId].emit("candidate", { candidate, socketId: socket.id })
+    socket.on("candidate", ({ candidate, to }) => {
+        log("candidate")
+        socket.to(to).emit("candidate", { candidate, from: socket.id })
     })
 })

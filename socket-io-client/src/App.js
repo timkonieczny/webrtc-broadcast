@@ -27,10 +27,10 @@ function App() {
     const createPeerConnection = (socketId) => {
       const pc = new RTCPeerConnection(config)
       pc.onicecandidate = event => {
-        console.log("onicecandidate")
         if (event.candidate)
-          socket.emit("candidate", { socketId, candidate: event.candidate })
+          socket.emit("candidate", { to: socketId, candidate: event.candidate })
       }
+
       peerConnections[socketId] = pc
       return pc
     }
@@ -44,49 +44,42 @@ function App() {
     socket.on("join", async (socketId) => {
       console.log("receive join")
       const pc = createPeerConnection(socketId)
+
+      const stream = localVideo.current.srcObject
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
       const offer = await pc.createOffer()
-      await pc.setLocalDescription(new RTCSessionDescription(offer))
+      await pc.setLocalDescription(offer)
 
-      socket.emit("webrtc-offer", { offer, to: socketId })
+      socket.emit("webrtc-offer", { offer: pc.localDescription, to: socketId })
     })
-    socket.on("webrtc-offer", async offer => {
+    socket.on("webrtc-offer", async ({ offer, from }) => {
       // spectator
-      console.log("receive webrtc-offer")
-
       spectatorPeerConnection = createPeerConnection(presenterId)
-      spectatorPeerConnection.ontrack = function ({ streams: [stream] }) {
-        console.log("ontrack")
-        if (remoteVideo) {
-          remoteVideo.srcObject = stream
-        }
+      spectatorPeerConnection.ontrack = ({ streams: [stream] }) => {
+        if (remoteVideo.current) remoteVideo.current.srcObject = stream
+
       }
 
-      await spectatorPeerConnection.setRemoteDescription(
-        new RTCSessionDescription(offer)
-      )
+      await spectatorPeerConnection.setRemoteDescription(new RTCSessionDescription(offer))
       const answer = await spectatorPeerConnection.createAnswer()
       await spectatorPeerConnection.setLocalDescription(new RTCSessionDescription(answer))
 
-      socket.emit("webrtc-answer", answer)
+      socket.emit("webrtc-answer", { answer, to: from })
     })
-    socket.on("webrtc-answer", async ({ answer, socketId }) => {
+    socket.on("webrtc-answer", async ({ answer, from }) => {
       // presenter
-      console.log("receive webrtc-answer")
-      const description = new RTCSessionDescription(answer)
-      await peerConnections[socketId].setRemoteDescription(description)
-
-      navigator.getUserMedia(
-        { video: true, audio: true },
-        stream => {
-          stream.getTracks().forEach(track => peerConnections[socketId].addTrack(track, stream))
-        },
-        (error) => { console.log(error) }
-      )
+      const pc = peerConnections[from]
+      await pc.setRemoteDescription(new RTCSessionDescription(answer))
     })
-    socket.on("candidate", ({ candidate, socketId }) => {
-      // presenter
-      console.log("receive candidate")
-      peerConnections[socketId].addIceCandidate(new RTCIceCandidate(candidate))
+    socket.on("candidate", ({ candidate, from }) => {
+      peerConnections[from].addIceCandidate(new RTCIceCandidate(candidate))
+    })
+    socket.on("webrtc-disconnect", ({ from }) => {
+      if (peerConnections[from]) {
+        peerConnections[from].close()
+        delete peerConnections[from]
+      }
     })
     setSocket(socket)
     return () => socket.disconnect()
@@ -97,21 +90,16 @@ function App() {
   }
 
   const join = async isPresenter => {
-    socket.emit("join", isPresenter)
     if (isPresenter) {
-      setUpLocalVideo()
+      navigator.getUserMedia(
+        { video: true, audio: true },
+        stream => {
+          if (localVideo.current) localVideo.current.srcObject = stream
+        },
+        (error) => { console.log(error) }
+      )
     }
-  }
-
-  const setUpLocalVideo = () => {
-    navigator.getUserMedia({ video: true, audio: true },
-      stream => {
-        if (localVideo.current) localVideo.current.srcObject = stream
-      },
-      error => {
-        console.log(error.message)
-      }
-    )
+    socket.emit("join", isPresenter)
   }
 
   const leave = () => {
