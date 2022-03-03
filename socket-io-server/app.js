@@ -16,6 +16,7 @@ const io = socketIo(server)
 
 const participants = {}
 let presenterId = null
+let presenterSocket = null
 
 io.on("connection", (socket) => {
 
@@ -27,6 +28,7 @@ io.on("connection", (socket) => {
         delete participants[socket.id]
         if (socket.id === presenterId) {
             presenterId = null
+            presenterSocket = null
             socket.emit("presenter", presenterId)
         }
         io.emit("participants", participants)
@@ -47,12 +49,21 @@ io.on("connection", (socket) => {
         participants[socket.id] = {
             name: socket.id
         }
-        if (isPresenter) presenterId = socket.id
+        if (isPresenter) {
+            presenterId = socket.id
+            presenterSocket = socket
+        }
         io.emit("participants", participants)
         io.emit("presenter", presenterId)
     })
 
     socket.on("leave", leave)
 
+    socket.on("webrtc-offer", (offer) => {
+        io.emit("webrtc-offer", offer)
+    })
 
+    socket.on("webrtc-answer", (answer) => {
+        presenterSocket.emit("webrtc-answer", answer)
+    })
 })
