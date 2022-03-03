@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import socketIOClient from "socket.io-client"
 const ENDPOINT = "http://127.0.0.1:4001"
 
@@ -6,6 +6,9 @@ function App() {
   const [presenterId, setPresenterId] = useState(null)
   const [socket, setSocket] = useState(null)
   const [participants, setParticipants] = useState({})
+  const localVideo = useRef(null)
+  const remoteVideo = useRef(null)
+
 
   useEffect(() => {
     const socket = socketIOClient(ENDPOINT)
@@ -25,6 +28,20 @@ function App() {
 
   const join = isPresenter => {
     socket.emit("join", isPresenter)
+    if (isPresenter) setUpLocalVideo()
+  }
+
+  const setUpLocalVideo = () => {
+    navigator.getUserMedia({ video: true, audio: true },
+      stream => {
+        console.log(localVideo.current)
+        if (localVideo.current)
+          localVideo.current.srcObject = stream
+      },
+      error => {
+        console.log(error.message)
+      }
+    )
   }
 
   const leave = () => {
@@ -60,11 +77,11 @@ function App() {
       <div style={{ display: "flex", flexDirection: "row" }}>
         <div>
           <h2>Local</h2>
-          <video style={{ border: "1px solid green", width: "16em", height: "9em" }} />
+          <video ref={localVideo} autoPlay muted style={{ border: "1px solid green", width: "16em", height: "9em" }} />
         </div>
         <div>
           <h2>Remote</h2>
-          <video style={{ border: "1px solid green", width: "16em", height: "9em" }} />
+          <video ref={remoteVideo} autoPlay style={{ border: "1px solid green", width: "16em", height: "9em" }} />
         </div>
       </div>
     </div>
