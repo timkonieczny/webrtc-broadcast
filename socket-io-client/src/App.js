@@ -39,12 +39,14 @@ function App() {
       navigator.getUserMedia(
         { video: true, audio: true },
         stream => {
-          if (localVideo.current) localVideo.current.srcObject = stream
+          if (localVideo.current) {
+            localVideo.current.srcObject = stream
+            socket.emit("join", isPresenter)
+          }
         },
         (error) => { console.log(error) }
       )
-    }
-    socket.emit("join", isPresenter)
+    } else socket.emit("join", isPresenter)
   }
 
   const leave = () => {

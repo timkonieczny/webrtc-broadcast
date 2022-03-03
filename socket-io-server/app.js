@@ -15,7 +15,6 @@ server.listen(port, () => console.log(`Listening on port ${port}`))
 const io = socketIo(server)
 
 const participants = {}
-const participantSockets = {}
 let presenterId = null
 
 io.on("connection", (socket) => {
@@ -26,7 +25,6 @@ io.on("connection", (socket) => {
 
     const leave = () => {
         delete participants[socket.id]
-        delete participantSockets[socket.id]
         if (socket.id === presenterId) {
             presenterId = null
             socket.emit("presenter", presenterId)
@@ -50,14 +48,16 @@ io.on("connection", (socket) => {
         participants[socket.id] = {
             name: socket.id
         }
-        participantSockets[socket.id] = socket
+        io.emit("participants", participants)
         if (isPresenter) {
             presenterId = socket.id
+            io.emit("presenter", presenterId)
+            Object.keys(participants).forEach(key => {
+                if (key !== presenterId) socket.emit("join", key)
+            })
         } else {
-            socket.to(presenterId).emit("join", socket.id)
+            if (presenterId) socket.to(presenterId).emit("join", socket.id)
         }
-        io.emit("participants", participants)
-        io.emit("presenter", presenterId)
     })
 
     socket.on("leave", leave)
