@@ -118,7 +118,7 @@ function App() {
 
   const lobbyVideos = () => {
     return Object.keys(participants).filter(socketId => socketId !== socket.id).map(socketId => {
-      return (<video key={socketId} id={`lobby-${socketId}`} autoPlay muted style={{ border: "3px solid red", width: "8em", height: "4.5em" }} />)
+      return (<video key={socketId} id={`lobby-${socketId}`} autoPlay style={{ border: "3px solid red", width: "8em", height: "4.5em" }} />)
     })
   }
 
