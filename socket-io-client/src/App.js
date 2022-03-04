@@ -10,7 +10,7 @@ function App() {
   const localVideo = useRef(null)
   const remoteVideo = useRef(null)
   const localLobbyVideo = useRef(null)
-  const localLobbyVideo = useRef(null)
+  const localLobbyVideos = useRef(null)
 
   useEffect(() => {
     let participants = {}
