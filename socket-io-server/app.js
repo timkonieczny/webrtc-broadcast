@@ -54,9 +54,9 @@ io.on("connection", (socket) => {
             isPresenter
         }
         io.emit("add-participant", { socketId: socket.id, participant: participants[socket.id] })
-        if (isPresenter) {
+        if (isPresenter)
             presenterId = socket.id
-        } else
+        else
             // emit new spectator to presenter, if present
             if (presenterId) socket.to(presenterId).emit("request-offer", socket.id)
 

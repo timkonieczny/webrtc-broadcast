@@ -36,6 +36,7 @@ function App() {
             socket.emit("request-offer", { to: socketId })
           }
         } else {
+          // if there is no presenter, request a lobby offer
           if (socketId !== socket.id && !manager.presenterId) {
             socket.emit("request-offer-lobby", { to: socketId })
           }
@@ -68,30 +69,24 @@ function App() {
     return presenterId ? presenterId : "Nobody"
   }
 
+  const setLocalVideo = (element, callback) => {
+    navigator.getUserMedia(
+      { video: true, audio: true },
+      stream => {
+        if (element) {
+          element.srcObject = stream
+          callback()
+        }
+      },
+      (error) => { console.log(error) }
+    )
+  }
+
   const join = async isPresenter => {
-    if (isPresenter) {
-      navigator.getUserMedia(
-        { video: true, audio: true },
-        stream => {
-          if (localVideo.current) {
-            localVideo.current.srcObject = stream
-            socket.emit("join", isPresenter)
-          }
-        },
-        (error) => { console.log(error) }
-      )
-    } else {
-      navigator.getUserMedia(
-        { video: true, audio: true },
-        stream => {
-          if (localLobbyVideo.current) {
-            localLobbyVideo.current.srcObject = stream
-            socket.emit("join", isPresenter)
-          }
-        },
-        (error) => { console.log(error) }
-      )
-    }
+    if (isPresenter)
+      setLocalVideo(localVideo.current, () => { socket.emit("join", isPresenter) })
+    else
+      setLocalVideo(localVideo.current, () => { socket.emit("join", isPresenter) })
   }
 
   const leave = () => {
