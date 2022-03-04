@@ -9,12 +9,15 @@ function App() {
   const [participants, setParticipants] = useState({})
   const localVideo = useRef(null)
   const remoteVideo = useRef(null)
+  const localLobbyVideo = useRef(null)
+  const localLobbyVideo = useRef(null)
 
   useEffect(() => {
     let participants = {}
 
     const socket = socketIOClient(ENDPOINT)
     const manager = new WebRTCManager(socket, localVideo.current)
+    const lobbyManager = new WebRTCManager(socket, localLobbyVideo.current)
     const setPresenter = id => {
       setPresenterId(id)
       manager.presenterId = id
@@ -58,7 +61,18 @@ function App() {
         },
         (error) => { console.log(error) }
       )
-    } else socket.emit("join", isPresenter)
+    } else {
+      navigator.getUserMedia(
+        { video: true, audio: true },
+        stream => {
+          if (localLobbyVideo.current) {
+            localLobbyVideo.current.srcObject = stream
+            socket.emit("join", isPresenter)
+          }
+        },
+        (error) => { console.log(error) }
+      )
+    }
   }
 
   const leave = () => {
@@ -83,6 +97,12 @@ function App() {
       : (<div><button onClick={() => { join(false) }}>join</button>{joinAsPresenterButton()}</div>)
   }
 
+  const lobbyVideos = () => {
+    return Object.keys(participants).filter(socketId => socketId !== socket.id).map(socketId => {
+      return (<video key={socketId} id={`lobby-${socketId}`} autoPlay muted style={{ border: "3px solid red", width: "8em", height: "4.5em" }} />)
+    })
+  }
+
   return (
     <div>
       <h1>Video broadcast</h1>
@@ -95,12 +115,16 @@ function App() {
       <div style={{ display: "flex", flexDirection: "row" }}>
         <div>
           <h2>Local</h2>
-          <video ref={localVideo} autoPlay muted style={{ border: "1px solid green", width: "16em", height: "9em" }} />
+          <video ref={localVideo} autoPlay muted style={{ border: "3px solid green", width: "16em", height: "9em" }} />
         </div>
         <div>
           <h2>Remote</h2>
-          <video ref={remoteVideo} autoPlay muted style={{ border: "1px solid green", width: "16em", height: "9em" }} />
+          <video ref={remoteVideo} autoPlay muted style={{ border: "3px solid red", width: "16em", height: "9em" }} />
         </div>
+      </div>
+      <div ref={localLobbyVideos}>
+        <video ref={localLobbyVideo} autoPlay muted style={{ border: "3px solid green", width: "8em", height: "4.5em" }} />
+        {lobbyVideos()}
       </div>
     </div>
   )
