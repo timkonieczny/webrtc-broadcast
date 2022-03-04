@@ -37,7 +37,11 @@ export default class WebRTCManager {
     // PRESENTER CALLBACKS
 
     // Creates a peer connection offer and emits it to connected clients
-    async onJoin(socketId) {
+    onRequestOffer(socketId) {
+        this.sendOffer(socketId)
+    }
+
+    async sendOffer(socketId) {
         const pc = this.createPeerConnection(socketId)
 
         const stream = this.localVideo.srcObject

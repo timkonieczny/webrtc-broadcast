@@ -27,9 +27,8 @@ io.on("connection", (socket) => {
         delete participants[socket.id]
         if (socket.id === presenterId) {
             presenterId = null
-            socket.emit("presenter", presenterId)
         }
-        io.emit("participants", participants)
+        io.emit("remove-participant", { socketId: socket.id })
         socket.to(presenterId).emit("webrtc-disconnect", { from: socket.id })
         log("client left")
     }
@@ -47,22 +46,22 @@ io.on("connection", (socket) => {
     socket.on("join", (isPresenter) => {
         log("client joined")
         participants[socket.id] = {
-            name: socket.id
+            name: socket.id,
+            isPresenter
         }
-        io.emit("participants", participants)   // broadcast updated participant list to all clients
+        io.emit("add-participant", { socketId: socket.id, participant: participants[socket.id] })
         if (isPresenter) {
             presenterId = socket.id
-            io.emit("presenter", presenterId)
-            // broadcast presenter join to all clients except the presenter
-            Object.keys(participants).filter(socketId => socketId !== presenterId).forEach(socketId => {
-                if (socketId !== presenterId) socket.emit("join", socketId)
-            })
         } else
             // emit new spectator to presenter, if present
-            if (presenterId) socket.to(presenterId).emit("join", socket.id)
+            if (presenterId) socket.to(presenterId).emit("request-offer", socket.id)
     })
 
     socket.on("leave", leave)
+
+    socket.on("request-offer", ({ to }) => {
+        socket.to(to).emit("request-offer", socket.id)
+    })
 
     // Relay peer connection offers, answers and ICE candidates
 

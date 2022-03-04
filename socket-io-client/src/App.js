@@ -11,17 +11,29 @@ function App() {
   const remoteVideo = useRef(null)
 
   useEffect(() => {
-    let presenterId
+    let participants = {}
 
     const socket = socketIOClient(ENDPOINT)
     const manager = new WebRTCManager(socket, localVideo.current)
-    socket.on("presenter", id => {
-      presenterId = id
-      manager.presenterId = presenterId
+    const setPresenter = id => {
       setPresenterId(id)
+      manager.presenterId = id
+    }
+    socket.on("add-participant", ({ socketId, participant }) => {
+      participants[socketId] = participant
+      setParticipants({ ...participants })
+      if (participant.isPresenter) setPresenter(socketId)
+
+      if (participant.isPresenter && socketId !== socket.id) {
+        socket.emit("request-offer", { to: socketId })
+      }
     })
-    socket.on("participants", setParticipants)
-    socket.on("join", manager.onJoin.bind(manager))
+    socket.on("remove-participant", ({ socketId }) => {
+      if (participants[socketId].isPresenter) setPresenter(null)
+      delete participants[socketId]
+      setParticipants({ ...participants })
+    })
+    socket.on("request-offer", manager.onRequestOffer.bind(manager))
     socket.on("webrtc-offer", (args) => { manager.onOffer.call(manager, args, remoteVideo.current) })
     socket.on("webrtc-answer", manager.onAnswer.bind(manager))
     socket.on("webrtc-candidate", manager.onCandidate.bind(manager))
