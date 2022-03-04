@@ -29,6 +29,7 @@ function App() {
 
       if (participant) {
         if (participant.isPresenter) {
+          // if a presenter joins, close all lobby connections and request an offer from the presenter
           setPresenter(socketId)
           lobbyManager.closeAllConnections()
           if (socketId !== socket.id) {

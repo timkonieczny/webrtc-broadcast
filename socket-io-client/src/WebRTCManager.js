@@ -35,9 +35,6 @@ export default class WebRTCManager {
         return pc
     }
 
-
-    // PRESENTER CALLBACKS
-
     // Creates a peer connection offer and emits it to connected clients
     onRequestOffer(socketId) {
         this.sendOffer(socketId)
@@ -66,6 +63,7 @@ export default class WebRTCManager {
         this.closeConnection(from)
     }
 
+    // Closes a single peer connection
     closeConnection(socketId) {
         if (this.peerConnections[socketId]) {
             this.peerConnections[socketId].close()
@@ -75,14 +73,12 @@ export default class WebRTCManager {
         }
     }
 
+    // Closes all peer connections
     closeAllConnections() {
         Object.keys(this.peerConnections).forEach(socketId => {
             this.closeConnection(socketId)
         })
     }
-
-
-    // SPECTATOR CALLBACKS
 
     // Handles incoming offer and serts up peer connection on the spectator side
     async onOffer({ offer, from }, mediaElement) {
