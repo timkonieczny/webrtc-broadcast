@@ -62,11 +62,23 @@ export default class WebRTCManager {
     }
 
     // Disconnects peer connection
-    async onDisconnect({ from }) {
-        if (this.peerConnections[from]) {
-            this.peerConnections[from].close()
-            delete this.peerConnections[from]
+    onDisconnect({ from }) {
+        this.closeConnection(from)
+    }
+
+    closeConnection(socketId) {
+        if (this.peerConnections[socketId]) {
+            this.peerConnections[socketId].close()
+            if (this.elements[socketId])
+                this.elements[socketId].srcObject = undefined
+            delete this.peerConnections[socketId]
         }
+    }
+
+    closeAllConnections() {
+        Object.keys(this.peerConnections).forEach(socketId => {
+            this.closeConnection(socketId)
+        })
     }
 
 

@@ -30,6 +30,7 @@ function App() {
       if (participant) {
         if (participant.isPresenter) {
           setPresenter(socketId)
+          lobbyManager.closeAllConnections()
           if (socketId !== socket.id) {
             socket.emit("request-offer", { to: socketId })
           }
