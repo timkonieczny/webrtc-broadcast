@@ -55,6 +55,7 @@ io.on("connection", (socket) => {
         } else
             // emit new spectator to presenter, if present
             if (presenterId) socket.to(presenterId).emit("request-offer", socket.id)
+
     })
 
     socket.on("leave", leave)
@@ -63,17 +64,33 @@ io.on("connection", (socket) => {
         socket.to(to).emit("request-offer", socket.id)
     })
 
+    socket.on("request-offer-lobby", ({ to }) => {
+        socket.to(to).emit("request-offer-lobby", socket.id)
+    })
+
     // Relay peer connection offers, answers and ICE candidates
 
     socket.on("webrtc-offer", ({ offer, to }) => {
         socket.to(to).emit("webrtc-offer", { offer, from: socket.id })
     })
 
+    socket.on("lobby-webrtc-offer", ({ offer, to }) => {
+        socket.to(to).emit("lobby-webrtc-offer", { offer, from: socket.id })
+    })
+
     socket.on("webrtc-answer", ({ answer, to }) => {
         socket.to(to).emit("webrtc-answer", { answer, from: socket.id })
     })
 
+    socket.on("lobby-webrtc-answer", ({ answer, to }) => {
+        socket.to(to).emit("lobby-webrtc-answer", { answer, from: socket.id })
+    })
+
     socket.on("webrtc-candidate", ({ candidate, to }) => {
         socket.to(to).emit("webrtc-candidate", { candidate, from: socket.id })
+    })
+
+    socket.on("lobby-webrtc-candidate", ({ candidate, to }) => {
+        socket.to(to).emit("lobby-webrtc-candidate", { candidate, from: socket.id })
     })
 })

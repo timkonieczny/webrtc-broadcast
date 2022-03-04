@@ -10,7 +10,7 @@ function App() {
   const localVideo = useRef(null)
   const remoteVideo = useRef(null)
   const localLobbyVideo = useRef(null)
-  const localLobbyVideos = useRef(null)
+  const remoteLobbyVideos = useRef(null)
 
   useEffect(() => {
     let participants = {}
@@ -18,6 +18,7 @@ function App() {
     const socket = socketIOClient(ENDPOINT)
     const manager = new WebRTCManager(socket, localVideo.current)
     const lobbyManager = new WebRTCManager(socket, localLobbyVideo.current)
+    lobbyManager.prefix = "lobby-"
     const setPresenter = id => {
       setPresenterId(id)
       manager.presenterId = id
@@ -25,10 +26,16 @@ function App() {
     socket.on("add-participant", ({ socketId, participant }) => {
       participants[socketId] = participant
       setParticipants({ ...participants })
-      if (participant.isPresenter) setPresenter(socketId)
 
-      if (participant.isPresenter && socketId !== socket.id) {
-        socket.emit("request-offer", { to: socketId })
+      if (participant.isPresenter) {
+        setPresenter(socketId)
+        if (socketId !== socket.id) {
+          socket.emit("request-offer", { to: socketId })
+        }
+      } else {
+        if (socketId !== socket.id && !manager.presenterId) {
+          socket.emit("request-offer-lobby", { to: socketId })
+        }
       }
     })
     socket.on("remove-participant", ({ socketId }) => {
@@ -37,9 +44,16 @@ function App() {
       setParticipants({ ...participants })
     })
     socket.on("request-offer", manager.onRequestOffer.bind(manager))
+    socket.on("request-offer-lobby", lobbyManager.onRequestOffer.bind(lobbyManager))
     socket.on("webrtc-offer", (args) => { manager.onOffer.call(manager, args, remoteVideo.current) })
+    socket.on("lobby-webrtc-offer", (args) => {
+      const videoElement = remoteLobbyVideos.current.querySelector(`#lobby-${args.from}`)
+      lobbyManager.onOffer.call(lobbyManager, args, videoElement)
+    })
     socket.on("webrtc-answer", manager.onAnswer.bind(manager))
+    socket.on("lobby-webrtc-answer", lobbyManager.onAnswer.bind(lobbyManager))
     socket.on("webrtc-candidate", manager.onCandidate.bind(manager))
+    socket.on("lobby-webrtc-candidate", lobbyManager.onCandidate.bind(lobbyManager))
     socket.on("webrtc-disconnect", manager.onDisconnect.bind(manager))
     setSocket(socket)
     return () => socket.disconnect()
@@ -122,7 +136,7 @@ function App() {
           <video ref={remoteVideo} autoPlay muted style={{ border: "3px solid red", width: "16em", height: "9em" }} />
         </div>
       </div>
-      <div ref={localLobbyVideos}>
+      <div ref={remoteLobbyVideos}>
         <video ref={localLobbyVideo} autoPlay muted style={{ border: "3px solid green", width: "8em", height: "4.5em" }} />
         {lobbyVideos()}
       </div>

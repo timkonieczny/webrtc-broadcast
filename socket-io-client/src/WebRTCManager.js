@@ -4,6 +4,8 @@ export default class WebRTCManager {
         this.socket = socket
         this.localVideo = localVideo
 
+        this.prefix = ""
+
         this.peerConnections = {}
         this.elements = {}
         this.presenterId = null
@@ -26,7 +28,7 @@ export default class WebRTCManager {
         const pc = new RTCPeerConnection(this.config)
         pc.onicecandidate = event => {
             if (event.candidate)
-                this.socket.emit("webrtc-candidate", { to: socketId, candidate: event.candidate })
+                this.socket.emit(`${this.prefix}webrtc-candidate`, { to: socketId, candidate: event.candidate })
         }
 
         this.peerConnections[socketId] = pc
@@ -50,7 +52,7 @@ export default class WebRTCManager {
         const offer = await pc.createOffer()
         await pc.setLocalDescription(offer)
 
-        this.socket.emit("webrtc-offer", { offer: pc.localDescription, to: socketId })
+        this.socket.emit(`${this.prefix}webrtc-offer`, { offer: pc.localDescription, to: socketId })
     }
 
     // Handles clients' answers to the offer that was previously sent
@@ -82,6 +84,6 @@ export default class WebRTCManager {
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(new RTCSessionDescription(answer))
 
-        this.socket.emit("webrtc-answer", { answer, to: from })
+        this.socket.emit(`${this.prefix}webrtc-answer`, { answer, to: from })
     }
 }
