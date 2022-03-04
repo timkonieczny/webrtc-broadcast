@@ -14,7 +14,7 @@ function App() {
     let presenterId
 
     const socket = socketIOClient(ENDPOINT)
-    const manager = new WebRTCManager(socket, localVideo.current, remoteVideo.current)
+    const manager = new WebRTCManager(socket, localVideo.current)
     socket.on("presenter", id => {
       presenterId = id
       manager.presenterId = presenterId
@@ -22,7 +22,7 @@ function App() {
     })
     socket.on("participants", setParticipants)
     socket.on("join", manager.onJoin.bind(manager))
-    socket.on("webrtc-offer", manager.onOffer.bind(manager))
+    socket.on("webrtc-offer", (args) => { manager.onOffer.call(manager, args, remoteVideo.current) })
     socket.on("webrtc-answer", manager.onAnswer.bind(manager))
     socket.on("webrtc-candidate", manager.onCandidate.bind(manager))
     socket.on("webrtc-disconnect", manager.onDisconnect.bind(manager))

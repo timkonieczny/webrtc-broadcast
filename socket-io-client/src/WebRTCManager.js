@@ -1,11 +1,10 @@
 export default class WebRTCManager {
-    constructor(socket, localVideo, remoteVideo) {
+    constructor(socket, localVideo) {
         this.socket = socket
         this.localVideo = localVideo
-        this.remoteVideo = remoteVideo
 
         this.peerConnections = {}
-        this.spectatorPeerConnection = null
+        this.elements = {}
         this.presenterId = null
         this.config = {
             iceServers: [
@@ -61,16 +60,16 @@ export default class WebRTCManager {
 
     // SPECTATOR CALLBACKS
 
-    async onOffer({ offer, from }) {
-        this.spectatorPeerConnection = this.createPeerConnection(this.presenterId)
-        this.spectatorPeerConnection.ontrack = ({ streams: [stream] }) => {
-            if (this.remoteVideo) this.remoteVideo.srcObject = stream
-
+    async onOffer({ offer, from }, mediaElement) {
+        const pc = this.createPeerConnection(from)
+        this.elements[from] = mediaElement
+        pc.ontrack = ({ streams: [stream] }) => {
+            if (this.elements[from]) this.elements[from].srcObject = stream
         }
 
-        await this.spectatorPeerConnection.setRemoteDescription(new RTCSessionDescription(offer))
-        const answer = await this.spectatorPeerConnection.createAnswer()
-        await this.spectatorPeerConnection.setLocalDescription(new RTCSessionDescription(answer))
+        await pc.setRemoteDescription(new RTCSessionDescription(offer))
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(new RTCSessionDescription(answer))
 
         this.socket.emit("webrtc-answer", { answer, to: from })
     }
