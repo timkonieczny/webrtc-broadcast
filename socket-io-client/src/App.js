@@ -27,14 +27,16 @@ function App() {
       participants[socketId] = participant
       setParticipants({ ...participants })
 
-      if (participant.isPresenter) {
-        setPresenter(socketId)
-        if (socketId !== socket.id) {
-          socket.emit("request-offer", { to: socketId })
-        }
-      } else {
-        if (socketId !== socket.id && !manager.presenterId) {
-          socket.emit("request-offer-lobby", { to: socketId })
+      if (participant) {
+        if (participant.isPresenter) {
+          setPresenter(socketId)
+          if (socketId !== socket.id) {
+            socket.emit("request-offer", { to: socketId })
+          }
+        } else {
+          if (socketId !== socket.id && !manager.presenterId) {
+            socket.emit("request-offer-lobby", { to: socketId })
+          }
         }
       }
     })
