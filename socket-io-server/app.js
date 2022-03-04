@@ -30,6 +30,10 @@ io.on("connection", (socket) => {
         }
         io.emit("remove-participant", { socketId: socket.id })
         socket.to(presenterId).emit("webrtc-disconnect", { from: socket.id })
+        socket.broadcast.emit("lobby-webrtc-disconnect", { from: socket.id })
+        Object.keys(participants).forEach(socketId => {
+            socket.to(socket.id).emit("lobby-webrtc-disconnect", { from: socketId })
+        })
         log("client left")
     }
 

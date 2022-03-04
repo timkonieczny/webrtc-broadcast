@@ -57,6 +57,7 @@ function App() {
     socket.on("webrtc-candidate", manager.onCandidate.bind(manager))
     socket.on("lobby-webrtc-candidate", lobbyManager.onCandidate.bind(lobbyManager))
     socket.on("webrtc-disconnect", manager.onDisconnect.bind(manager))
+    socket.on("lobby-webrtc-disconnect", lobbyManager.onDisconnect.bind(lobbyManager))
     setSocket(socket)
     return () => socket.disconnect()
   }, [])
