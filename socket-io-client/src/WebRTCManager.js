@@ -1,3 +1,4 @@
+// Handles WebRTC connections between a presenter that broadcasts to spectators
 export default class WebRTCManager {
     constructor(socket, localVideo) {
         this.socket = socket
@@ -15,10 +16,12 @@ export default class WebRTCManager {
         }
     }
 
+    // Handles ICE candidate exchange
     async onCandidate({ candidate, from }) {
         this.peerConnections[from].addIceCandidate(new RTCIceCandidate(candidate))
     }
 
+    // Creates Peer connection and associates it with a socket
     createPeerConnection(socketId) {
         const pc = new RTCPeerConnection(this.config)
         pc.onicecandidate = event => {
@@ -33,6 +36,7 @@ export default class WebRTCManager {
 
     // PRESENTER CALLBACKS
 
+    // Creates a peer connection offer and emits it to connected clients
     async onJoin(socketId) {
         const pc = this.createPeerConnection(socketId)
 
@@ -45,11 +49,13 @@ export default class WebRTCManager {
         this.socket.emit("webrtc-offer", { offer: pc.localDescription, to: socketId })
     }
 
+    // Handles clients' answers to the offer that was previously sent
     async onAnswer({ answer, from }) {
         const pc = this.peerConnections[from]
         await pc.setRemoteDescription(new RTCSessionDescription(answer))
     }
 
+    // Disconnects peer connection
     async onDisconnect({ from }) {
         if (this.peerConnections[from]) {
             this.peerConnections[from].close()
@@ -60,6 +66,7 @@ export default class WebRTCManager {
 
     // SPECTATOR CALLBACKS
 
+    // Handles incoming offer and serts up peer connection on the spectator side
     async onOffer({ offer, from }, mediaElement) {
         const pc = this.createPeerConnection(from)
         this.elements[from] = mediaElement

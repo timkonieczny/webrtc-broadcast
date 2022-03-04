@@ -73,7 +73,8 @@ function App() {
 
   return (
     <div>
-      <h1>{presenter()}</h1>
+      <h1>Video broadcast</h1>
+      <p>{presenter()} is presenting</p>
       {joinLeaveButtons()}
       <h2>Participants</h2>
       <ul>

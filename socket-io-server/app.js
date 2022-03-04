@@ -43,24 +43,28 @@ io.on("connection", (socket) => {
         if (participants[socket.id]) leave()
     })
 
+    // Called when video call is joined
     socket.on("join", (isPresenter) => {
         log("client joined")
         participants[socket.id] = {
             name: socket.id
         }
-        io.emit("participants", participants)
+        io.emit("participants", participants)   // broadcast updated participant list to all clients
         if (isPresenter) {
             presenterId = socket.id
             io.emit("presenter", presenterId)
-            Object.keys(participants).forEach(key => {
-                if (key !== presenterId) socket.emit("join", key)
+            // broadcast presenter join to all clients except the presenter
+            Object.keys(participants).filter(socketId => socketId !== presenterId).forEach(socketId => {
+                if (socketId !== presenterId) socket.emit("join", socketId)
             })
-        } else {
+        } else
+            // emit new spectator to presenter, if present
             if (presenterId) socket.to(presenterId).emit("join", socket.id)
-        }
     })
 
     socket.on("leave", leave)
+
+    // Relay peer connection offers, answers and ICE candidates
 
     socket.on("webrtc-offer", ({ offer, to }) => {
         socket.to(to).emit("webrtc-offer", { offer, from: socket.id })
